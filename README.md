@@ -87,6 +87,7 @@ local ValveFlicker = require(game.ReplicatedStorage.ValveFlicker)
 local light2 = script.Parent
 
 ValveFlicker.createCustomStyle(500, "azzazzzazzmmazzmazmm")
+task.wait(0.1)
 ValveFlicker.startFlicker(light2, 500, true)
 ```
 
@@ -94,6 +95,7 @@ ValveFlicker.startFlicker(light2, 500, true)
 local ValveFlicker = require(game.ReplicatedStorage.ValveFlicker)
 local light1 = script.Parent
 
+task.wait(0.1)
 ValveFlicker.startFlicker(light1, 500, true)
 ```
 ---
