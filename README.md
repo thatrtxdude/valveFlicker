@@ -6,6 +6,11 @@ I created this module to address a common problem I noticed when working with fl
 
 ---
 
+### Preview
+https://github.com/user-attachments/assets/dc91f7b1-184f-4a88-b535-96a5a0a4c6f0
+
+---
+
 ### Features
 
 - **Predefined Flicker Styles**: Collection of pre-defined patterns, most of them from Half-Life.
