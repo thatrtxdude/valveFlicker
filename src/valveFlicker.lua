@@ -43,7 +43,8 @@ type LightState = {
 	currentBrightness: number,   -- The current brightness level of the light.
 	maxBrightness: number,       -- The maximum brightness of the light (its initial brightness).
 	debugGui: BillboardGui?,     -- (Optional) BillboardGui for debugging visualization.
-	debugLabel: TextLabel?       -- (Optional) TextLabel within the debug GUI.
+	debugLabel: TextLabel?,       -- (Optional) TextLabel within the debug GUI.
+	paused: boolean    -- New field for pause state
 }
 
 -- Defines a specific flickering pattern and manages the lights using that pattern.
@@ -186,18 +187,19 @@ local function updateAllLightsForStyle(styleIndex: number, deltaTime: number)
 
 	for light, lightState in pairs(style.lights) do
 		if not light:IsDescendantOf(workspace) then
-			-- Stop flickering if the light has been removed from the workspace.
+			-- Stop flickering if the light has been removed from the workspace
 			ValveFlicker.stopFlicker(light, styleIndex)
-		else
+		elseif not lightState.paused then -- Only update if not paused
 			lightState.accumulatedTime += deltaTime
-			-- Calculate the interpolation alpha (0 to 1) for the current transition.
+
+			-- Calculate the interpolation alpha (0 to 1) for the current transition
 			local alpha = math.min(lightState.accumulatedTime / style.transitionTime, 1)
 
-			-- Interpolate towards the target brightness.
+			-- Interpolate towards the target brightness
 			lightState.currentBrightness = lerp(lightState.currentBrightness, lightState.targetBrightness, alpha)
 			light.Brightness = math.clamp(lightState.currentBrightness, MIN_BRIGHTNESS, lightState.maxBrightness)
 
-			-- Update the debug GUI if it exists.
+			-- Update the debug GUI if it exists
 			if lightState.debugLabel then
 				local filledCount = math.floor((lightState.currentBrightness / lightState.maxBrightness) * DEFAULT_BAR_LENGTH)
 				local brightnessBar = string.rep("█", filledCount) .. string.rep("░", DEFAULT_BAR_LENGTH - filledCount)
@@ -213,7 +215,7 @@ local function updateAllLightsForStyle(styleIndex: number, deltaTime: number)
 				)
 			end
 
-			-- If the transition is complete, move to the next step in the sequence.
+			-- If the transition is complete, move to the next step in the sequence
 			if alpha >= 1 then
 				lightState.accumulatedTime = 0
 				updateIndex(style, lightState)
@@ -315,6 +317,56 @@ function ValveFlicker.startFlicker(light: Light, styleIndex: number, debug: bool
 
 	-- Ensure the Heartbeat connection for this style is running.
 	startStyleConnection(styleIndex)
+end
+
+--- Pauses the flickering effect for a given light without removing its state.
+-- @param light The Light instance to pause flickering for.
+-- @param styleIndex The index of the flicker style being used.
+function ValveFlicker.pauseFlicker(light: Light, styleIndex: number)
+	local style = LIGHT_STYLES[styleIndex]
+	if style and style.lights[light] then
+		local lightState = style.lights[light]
+		lightState.paused = true
+		-- Store the current brightness while paused
+		if light and light:IsDescendantOf(workspace) then
+			light.Brightness = lightState.currentBrightness
+		end
+	end
+end
+
+--- Resumes the flickering effect for a previously paused light.
+-- @param light The Light instance to resume flickering for.
+-- @param styleIndex The index of the flicker style being used.
+function ValveFlicker.resumeFlicker(light: Light, styleIndex: number)
+	local style = LIGHT_STYLES[styleIndex]
+	if style and style.lights[light] then
+		local lightState = style.lights[light]
+		lightState.paused = false
+		-- Reset accumulated time to ensure smooth transition
+		lightState.accumulatedTime = 0
+	end
+end
+
+--- Gets the current light style information for a given light.
+-- @param light The Light instance to check.
+-- @return A table containing the style index and configuration, or nil if the light isn't using any style.
+function ValveFlicker.getLightStyle(light: Light): {styleIndex: number, sequence: string, transitionTime: number, paused: boolean}?
+	assert(typeof(light) == "Instance" and light:IsA("Light"), "Argument must be a Light instance.")
+
+	-- Search through all styles to find which one is using this light
+	for styleIndex, style in pairs(LIGHT_STYLES) do
+		local lightState = style.lights[light]
+		if lightState then
+			return {
+				styleIndex = styleIndex,
+				sequence = style.sequence,
+				transitionTime = style.transitionTime,
+				paused = lightState.paused or false
+			}
+		end
+	end
+
+	return nil -- Light is not using any style
 end
 
 --- Stops the light flickering effect on a given Light instance.
